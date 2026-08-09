@@ -1,26 +1,27 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import chatRoutes from './routes/chatRoutes.js';
 
-dotenv.config();
-
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Middlewares
-app.use(cors());
+// Permite que la app móvil y web se conecten desde cualquier origen (CORS)
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
-// Healthcheck
+// Endpoint de prueba de vida
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', app: 'dime. API Service' });
 });
 
-// Rutas de la API
+// Rutas de la API para el chat
 app.use('/api/v1/chat', chatRoutes);
 
-// Inicio del servidor
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor de "dime." corriendo en el puerto ${PORT}`);
+  console.log(`Servidor dime. activo en el puerto ${PORT}`);
 });
