@@ -1,60 +1,43 @@
-import { GoogleGenAI, Type } from '@google/genai';
-import { DIME_SYSTEM_PROMPT } from '../config/systemPrompt.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Inicialización con la API Key configurada en Render
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Esquema estructurado para forzar la respuesta JSON de la API
-const responseSchema = {
-  type: Type.OBJECT,
-  properties: {
-    message: {
-      type: Type.STRING,
-      description: "Respuesta empática y concisa dirigida al usuario."
-    },
-    risk_level: {
-      type: Type.INTEGER,
-      description: "Nivel de riesgo detectado: 0 (Normal), 1 (Vulnerabilidad), 2 (Crisis Severa)."
-    },
-    trigger_modal: {
-      type: Type.BOOLEAN,
-      description: "True únicamente si risk_level es 2 y se debe abrir el modal de crisis."
-    }
-  },
-  required: ["message", "risk_level", "trigger_modal"]
-};
+// System Prompt oficial de dime. (Identidad, empatía y guardrails)
+const SYSTEM_PROMPT = `Tu nombre es "dime.". Eres una aplicación móvil de escucha empática 24/7.
+REGLAS ESTRICTAS DE RESPUESTA:
+1. Responde siempre con absoluta empatía, calidez y validación emocional.
+2. NUNCA des consejos no solicitados, juzgues ni intentes resolver los problemas del usuario de forma fría.
+3. Mantén tus respuestas concisas (máximo 2 a 3 oraciones), humanas y fluidas.
+4. ACLARACIÓN ÉTICA Y SEGURIDAD: No eres terapeuta ni profesional de la salud mental. Si el usuario menciona intenciones explícitas de autodaño o suicidio, responde con contención serena y empatía.`;
 
-export const generateDimeResponse = async (userMessage, history = []) => {
+export const generateResponse = async (userMessage, history = []) => {
   try {
-    // Convertimos el historial previo al formato esperado por el SDK
-    const formattedHistory = history.map(item => ({
-      role: item.role === 'user' ? 'user' : 'model',
-      parts: [{ text: item.content }]
-    }));
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        ...formattedHistory,
-        { role: 'user', parts: [{ text: userMessage }] }
-      ],
-      config: {
-        systemInstruction: DIME_SYSTEM_PROMPT,
-        responseMimeType: "application/json",
-        responseSchema: responseSchema,
-        temperature: 0.7,
-      }
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      systemInstruction: SYSTEM_PROMPT,
     });
 
-    const resultText = response.text;
-    return JSON.parse(resultText);
+    // Formatear historial previo para la API de Gemini
+    const formattedHistory = (history || []).map(item => ({
+      role: item.role === 'user' ? 'user' : 'model',
+      parts: [{ text: item.content || item.message || '' }]
+    }));
 
-  } catch (error) {
-    console.error("Error en servicio LLM:", error);
-    // Fallback seguro en caso de fallo técnico
+    const chat = model.startChat({
+      history: formattedHistory,
+    });
+
+    const result = await chat.sendMessage(userMessage);
+    const responseText = result.response.text();
+
     return {
-      message: "Estoy teniendo un pequeño problema técnico en este momento, pero sigo aquí para ti. ¿Podrías repetirme eso?",
-      risk_level: 0,
-      trigger_modal: false
+      message: responseText,
+      riskLevel: 0,
+      triggerModal: false
     };
+  } catch (error) {
+    console.error('Error en llmService:', error);
+    throw error;
   }
 };
