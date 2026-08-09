@@ -10,7 +10,7 @@ REGLAS ESTRICTAS DE RESPUESTA:
 3. Mantén tus respuestas concisas (máximo 2 a 3 oraciones), humanas y fluidas.
 4. ACLARACIÓN ÉTICA Y SEGURIDAD: No eres terapeuta ni profesional de la salud mental. Si el usuario menciona intenciones explícitas de autodaño o suicidio, responde con contención serena y empatía.`;
 
-export const generateResponse = async (userMessage, history = []) => {
+export const generateDimeResponse = async (userMessage, history = []) => {
   try {
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY no se encuentra configurada en las variables de entorno de Render.');
@@ -43,3 +43,6 @@ export const generateResponse = async (userMessage, history = []) => {
     throw error;
   }
 };
+
+// Exportación alternativa por compatibilidad
+export const generateResponse = generateDimeResponse;
