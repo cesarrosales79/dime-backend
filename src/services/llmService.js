@@ -17,8 +17,9 @@ REGLAS ESTRICTAS DE RESPUESTA:
 4. ACLARACIÓN ÉTICA Y SEGURIDAD: No eres terapeuta ni profesional de la salud mental. Si el usuario menciona intenciones explícitas de autodaño o suicidio, responde con contención serena y empatía.`;
 
   try {
+    // Actualizado a gemini-2.5-flash para compatibilidad con la API
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       systemInstruction: SYSTEM_PROMPT,
     });
 
