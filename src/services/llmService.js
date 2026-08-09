@@ -16,36 +16,43 @@ REGLAS ESTRICTAS DE RESPUESTA:
 3. Mantén tus respuestas concisas (máximo 2 a 3 oraciones), humanas y fluidas.
 4. ACLARACIÓN ÉTICA Y SEGURIDAD: No eres terapeuta ni profesional de la salud mental. Si el usuario menciona intenciones explícitas de autodaño o suicidio, responde con contención serena y empatía.`;
 
-  try {
-    // Actualizado a gemini-2.5-flash para compatibilidad con la API
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
-      systemInstruction: SYSTEM_PROMPT,
-    });
+  // Modelos candidatos evaluados en orden de preferencia
+  const candidateModels = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+  let lastError = null;
 
-    const formattedHistory = (history || [])
-      .filter(item => item && (item.content || item.message))
-      .map(item => ({
-        role: item.role === 'user' ? 'user' : 'model',
-        parts: [{ text: item.content || item.message }]
-      }));
+  const formattedHistory = (history || [])
+    .filter(item => item && (item.content || item.message))
+    .map(item => ({
+      role: item.role === 'user' ? 'user' : 'model',
+      parts: [{ text: item.content || item.message }]
+    }));
 
-    const chat = model.startChat({
-      history: formattedHistory,
-    });
+  for (const modelName of candidateModels) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: SYSTEM_PROMPT,
+      });
 
-    const result = await chat.sendMessage(userMessage);
-    const responseText = result.response.text();
+      const chat = model.startChat({
+        history: formattedHistory,
+      });
 
-    return {
-      message: responseText,
-      riskLevel: 0,
-      triggerModal: false
-    };
-  } catch (error) {
-    console.error('Error llamando a la API de Gemini:', error);
-    throw new Error(`Gemini API Error: ${error.message || error}`);
+      const result = await chat.sendMessage(userMessage);
+      const responseText = result.response.text();
+
+      return {
+        message: responseText,
+        riskLevel: 0,
+        triggerModal: false
+      };
+    } catch (error) {
+      console.warn(`Modelo ${modelName} no disponible, intentando siguiente candidato...`, error.message);
+      lastError = error;
+    }
   }
+
+  throw new Error(`Gemini API Error: ${lastError?.message || lastError}`);
 };
 
 export const generateResponse = generateDimeResponse;
