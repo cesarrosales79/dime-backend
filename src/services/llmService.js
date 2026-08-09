@@ -1,9 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Inicialización con la API Key configurada en Render
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const apiKey = process.env.GEMINI_API_KEY;
+const genAI = new GoogleGenerativeAI(apiKey || '');
 
-// System Prompt oficial de dime. (Identidad, empatía y guardrails)
 const SYSTEM_PROMPT = `Tu nombre es "dime.". Eres una aplicación móvil de escucha empática 24/7.
 REGLAS ESTRICTAS DE RESPUESTA:
 1. Responde siempre con absoluta empatía, calidez y validación emocional.
@@ -13,12 +12,15 @@ REGLAS ESTRICTAS DE RESPUESTA:
 
 export const generateResponse = async (userMessage, history = []) => {
   try {
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY no se encuentra configurada en las variables de entorno de Render.');
+    }
+
     const model = genAI.getGenerativeModel({
       model: 'gemini-1.5-flash',
       systemInstruction: SYSTEM_PROMPT,
     });
 
-    // Formatear historial previo para la API de Gemini
     const formattedHistory = (history || []).map(item => ({
       role: item.role === 'user' ? 'user' : 'model',
       parts: [{ text: item.content || item.message || '' }]
@@ -37,7 +39,7 @@ export const generateResponse = async (userMessage, history = []) => {
       triggerModal: false
     };
   } catch (error) {
-    console.error('Error en llmService:', error);
+    console.error('Error interno en llmService:', error.message || error);
     throw error;
   }
 };
