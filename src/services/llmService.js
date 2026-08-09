@@ -4,7 +4,7 @@ export const generateDimeResponse = async (userMessage, history = []) => {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey || apiKey.trim() === '') {
-    throw new Error('La variable GEMINI_API_KEY no está configurada o está vacía en Render.');
+    throw new Error('La variable GEMINI_API_KEY no está configurada en Render.');
   }
 
   const genAI = new GoogleGenerativeAI(apiKey.trim());
@@ -16,53 +16,36 @@ REGLAS ESTRICTAS DE RESPUESTA:
 3. Mantén tus respuestas concisas (máximo 2 a 3 oraciones), humanas y fluidas.
 4. ACLARACIÓN ÉTICA Y SEGURIDAD: No eres terapeuta ni profesional de la salud mental. Si el usuario menciona intenciones explícitas de autodaño o suicidio, responde con contención serena y empatía.`;
 
-  // Modelos estables de producción con alias de versión
-  const candidateModels = [
-    'gemini-1.5-flash-latest',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro-latest',
-    'gemini-2.0-flash'
-  ];
+  try {
+    // gemini-1.5-flash activo en modo Pay-As-You-Go
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      systemInstruction: SYSTEM_PROMPT,
+    });
 
-  const formattedHistory = (history || [])
-    .filter(item => item && (item.content || item.message))
-    .map(item => ({
-      role: item.role === 'user' ? 'user' : 'model',
-      parts: [{ text: item.content || item.message }]
-    }));
+    const formattedHistory = (history || [])
+      .filter(item => item && (item.content || item.message))
+      .map(item => ({
+        role: item.role === 'user' ? 'user' : 'model',
+        parts: [{ text: item.content || item.message }]
+      }));
 
-  let lastError = null;
+    const chat = model.startChat({
+      history: formattedHistory,
+    });
 
-  for (const modelName of candidateModels) {
-    try {
-      // Forzamos la comunicación a la API v1 estable de Google
-      const model = genAI.getGenerativeModel(
-        {
-          model: modelName,
-          systemInstruction: SYSTEM_PROMPT,
-        },
-        { apiVersion: 'v1' }
-      );
+    const result = await chat.sendMessage(userMessage);
+    const responseText = result.response.text();
 
-      const chat = model.startChat({
-        history: formattedHistory,
-      });
-
-      const result = await chat.sendMessage(userMessage);
-      const responseText = result.response.text();
-
-      return {
-        message: responseText,
-        riskLevel: 0,
-        triggerModal: false
-      };
-    } catch (error) {
-      console.warn(`Intento fallido con ${modelName}:`, error.message);
-      lastError = error;
-    }
+    return {
+      message: responseText,
+      riskLevel: 0,
+      triggerModal: false
+    };
+  } catch (error) {
+    console.error('Error en comunicación con Gemini API:', error);
+    throw new Error(`Gemini API Error: ${error.message || error}`);
   }
-
-  throw new Error(`Gemini API Error: ${lastError?.message || lastError}`);
 };
 
 export const generateResponse = generateDimeResponse;
