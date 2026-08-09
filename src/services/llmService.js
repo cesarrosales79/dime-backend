@@ -1,10 +1,13 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+// Variable de caché interna para recordar el modelo funcional
+let activeWorkingModel = null;
+
 export const generateDimeResponse = async (userMessage, history = []) => {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey || apiKey.trim() === '') {
-    throw new Error('La variable GEMINI_API_KEY no está configurada en Render.');
+    throw new Error('La variable GEMINI_API_KEY no está configurada o está vacía en Render.');
   }
 
   const genAI = new GoogleGenerativeAI(apiKey.trim());
@@ -16,36 +19,60 @@ REGLAS ESTRICTAS DE RESPUESTA:
 3. Mantén tus respuestas concisas (máximo 2 a 3 oraciones), humanas y fluidas.
 4. ACLARACIÓN ÉTICA Y SEGURIDAD: No eres terapeuta ni profesional de la salud mental. Si el usuario menciona intenciones explícitas de autodaño o suicidio, responde con contención serena y empatía.`;
 
-  try {
-    // gemini-1.5-flash activo en modo Pay-As-You-Go
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      systemInstruction: SYSTEM_PROMPT,
-    });
+  // Formatear historial para la API de Gemini
+  const formattedHistory = (history || [])
+    .filter(item => item && (item.content || item.message))
+    .map(item => ({
+      role: item.role === 'user' ? 'user' : 'model',
+      parts: [{ text: item.content || item.message }]
+    }));
 
-    const formattedHistory = (history || [])
-      .filter(item => item && (item.content || item.message))
-      .map(item => ({
-        role: item.role === 'user' ? 'user' : 'model',
-        parts: [{ text: item.content || item.message }]
-      }));
+  // Lista de modelos candidatos oficiales en orden de preferencia
+  const candidateModels = [
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-8b',
+    'gemini-1.5-pro',
+    'gemini-2.0-flash-exp',
+    'gemini-2.0-flash'
+  ];
 
-    const chat = model.startChat({
-      history: formattedHistory,
-    });
+  // Priorizamos el modelo que funcionó previamente en caché
+  const modelsToTry = activeWorkingModel
+    ? [activeWorkingModel, ...candidateModels.filter(m => m !== activeWorkingModel)]
+    : candidateModels;
 
-    const result = await chat.sendMessage(userMessage);
-    const responseText = result.response.text();
+  let lastError = null;
 
-    return {
-      message: responseText,
-      riskLevel: 0,
-      triggerModal: false
-    };
-  } catch (error) {
-    console.error('Error en comunicación con Gemini API:', error);
-    throw new Error(`Gemini API Error: ${error.message || error}`);
+  for (const modelName of modelsToTry) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: SYSTEM_PROMPT,
+      });
+
+      const chat = model.startChat({
+        history: formattedHistory,
+      });
+
+      const result = await chat.sendMessage(userMessage);
+      const responseText = result.response.text();
+
+      // Guardamos en caché el modelo exitoso
+      activeWorkingModel = modelName;
+      console.log(`[dime. Engine] Respuesta generada exitosamente con el modelo: ${modelName}`);
+
+      return {
+        message: responseText,
+        riskLevel: 0,
+        triggerModal: false
+      };
+    } catch (error) {
+      console.warn(`[dime. Engine] Modelo '${modelName}' falló. Evaluando siguiente candidato... Detalle: ${error.message}`);
+      lastError = error;
+    }
   }
+
+  throw new Error(`Ningún modelo de Gemini respondió con éxito. Último error: ${lastError?.message || lastError}`);
 };
 
 export const generateResponse = generateDimeResponse;
