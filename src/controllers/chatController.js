@@ -4,24 +4,25 @@ export const handleChatMessage = async (req, res) => {
   try {
     const { message, history } = req.body;
 
-    if (!message || typeof message !== 'string' || message.trim() === '') {
+    if (!message || message.trim() === '') {
       return res.status(400).json({
-        error: "El parámetro 'message' es requerido y no puede estar vacío."
+        status: 'error',
+        message: 'El mensaje no puede estar vacío.'
       });
     }
 
-    const aiResponse = await generateDimeResponse(message, history || []);
+    const botResponse = await generateDimeResponse(message, history);
 
     return res.status(200).json({
-      status: "success",
-      data: aiResponse
+      status: 'success',
+      data: botResponse
     });
-
   } catch (error) {
-    console.error("Error en ChatController:", error);
+    console.error('Error detallado en chatController:', error);
+    // Devuelve el mensaje explícito del error para diagnóstico
     return res.status(500).json({
-      status: "error",
-      message: "Error interno procesando la solicitud."
+      status: 'error',
+      message: error.message || 'Error interno procesando la solicitud.'
     });
   }
 };
