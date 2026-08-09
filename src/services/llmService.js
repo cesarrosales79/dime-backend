@@ -16,9 +16,13 @@ REGLAS ESTRICTAS DE RESPUESTA:
 3. Mantén tus respuestas concisas (máximo 2 a 3 oraciones), humanas y fluidas.
 4. ACLARACIÓN ÉTICA Y SEGURIDAD: No eres terapeuta ni profesional de la salud mental. Si el usuario menciona intenciones explícitas de autodaño o suicidio, responde con contención serena y empatía.`;
 
-  // Modelos candidatos evaluados en orden de preferencia
-  const candidateModels = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
-  let lastError = null;
+  // Modelos estables de producción con alias de versión
+  const candidateModels = [
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro-latest',
+    'gemini-2.0-flash'
+  ];
 
   const formattedHistory = (history || [])
     .filter(item => item && (item.content || item.message))
@@ -27,12 +31,18 @@ REGLAS ESTRICTAS DE RESPUESTA:
       parts: [{ text: item.content || item.message }]
     }));
 
+  let lastError = null;
+
   for (const modelName of candidateModels) {
     try {
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        systemInstruction: SYSTEM_PROMPT,
-      });
+      // Forzamos la comunicación a la API v1 estable de Google
+      const model = genAI.getGenerativeModel(
+        {
+          model: modelName,
+          systemInstruction: SYSTEM_PROMPT,
+        },
+        { apiVersion: 'v1' }
+      );
 
       const chat = model.startChat({
         history: formattedHistory,
@@ -47,7 +57,7 @@ REGLAS ESTRICTAS DE RESPUESTA:
         triggerModal: false
       };
     } catch (error) {
-      console.warn(`Modelo ${modelName} no disponible, intentando siguiente candidato...`, error.message);
+      console.warn(`Intento fallido con ${modelName}:`, error.message);
       lastError = error;
     }
   }
