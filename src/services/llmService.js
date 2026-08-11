@@ -4,12 +4,12 @@ export const generateDimeResponse = async (userMessage, history = []) => {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey || apiKey.trim() === '') {
-    throw new Error('La variable GEMINI_API_KEY no está configurada o está vacía en Render.');
+    throw new Error('La variable GEMINI_API_KEY no está configurada en Render.');
   }
 
   const genAI = new GoogleGenerativeAI(apiKey.trim());
 
-  // System Prompt Oficial de dime. (Identidad, empatía y guardrails éticos)
+  // SYSTEM PROMPT HUMANIZADO
   const SYSTEM_PROMPT = `Tu nombre es "dime.". Eres un espacio conversacional de escucha, consejos y compañía 24/7. Hablas con personas de entre 18 y 40 años. Tu tono debe ser completamente natural, fluido, cálido y orgánico. Eres inquisitivo, curioso pero respetuoso de la privacidad. 
 
 REGLAS OBLIGATORIAS DE PERSONALIDAD Y LENGUAJE:
@@ -32,12 +32,11 @@ REGLAS OBLIGATORIAS DE PERSONALIDAD Y LENGUAJE:
 
 4. SEGURIDAD ÉTICA:
    - No eres terapeuta ni profesional de la salud mental. Si el usuario expresa intenciones explícitas de autodaño o crisis grave, responde con contención serena y empatía cálida.`;
-  
-  // Modelos candidatos en orden de preferencia según tu proyecto activo en Google AI Studio
+  // Identificadores oficiales de modelos según tu Google AI Studio
   const candidateModels = [
     'gemini-3-flash-preview',
     'gemini-2.5-flash',
-    'gemini-1.5-flash'
+    'gemini-2.0-flash'
   ];
 
   const formattedHistory = (history || [])
@@ -63,7 +62,7 @@ REGLAS OBLIGATORIAS DE PERSONALIDAD Y LENGUAJE:
       const result = await chat.sendMessage(userMessage);
       const responseText = result.response.text();
 
-      console.log(`[dime. Engine] Respuesta generada exitosamente con: ${modelName}`);
+      console.log(`[dime. Engine] Respuesta generada con éxito usando: ${modelName}`);
 
       return {
         message: responseText,
@@ -71,7 +70,7 @@ REGLAS OBLIGATORIAS DE PERSONALIDAD Y LENGUAJE:
         triggerModal: false
       };
     } catch (error) {
-      console.warn(`[dime. Engine] Intento con '${modelName}' no completado:`, error.message);
+      console.warn(`[dime. Engine] Intento fallido con '${modelName}':`, error.message);
       lastError = error;
     }
   }
